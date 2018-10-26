@@ -1,0 +1,235 @@
+---
+title: "relation2"
+author: "xinru cheng"
+date: "10/26/2018"
+output: html_document
+---
+
+
+```{r}
+com_call<-filter(raa.data)%>%select(ï..ID,CallType)
+com_call<-cbind.data.frame(com_call,chiefc[,2])
+colnames(com_call)<-c('id','Calltype','ChiefComplaint')
+length(unique(com_call[,3]))
+simp_com<-matrix(NA,nrow=nrow(raa.data),ncol=1)
+for (i in 1:nrow(simp_com)){
+  simp_com[i,1]<-strsplit(toString(com_call[i,3]),'-')[[1]][1]
+} 
+length(unique(simp_com[,1]))
+com_call<-cbind.data.frame(com_call,simp_com)
+colnames(com_call)<-c('id','Calltype','ChiefComplaint','SimpleComplaint')
+head(com_call)
+```
+create a dataframe including Simple complaint and impression and intervention
+```{r}
+com_im_int<-cbind.data.frame(simp_com,raa.data$ï..ID,raa.data$Impression,raa.data$Interventions)
+```
+
+draw plot to show complaint distribution
+```{r}
+complaint<-as.data.frame(table(simp_com)) #count the number of distinct calltype
+comp<-as.matrix(complaint)
+colnames(comp)<-c('complaint','frequency')
+comp<-comp[order(ct[,2],decreasing = 'True'),] #sort call type in decreasing order
+comp<-as.data.frame(comp)
+comp$complaint <- factor(comp$complaint, levels = comp$complaint[order(comp$frequency)])
+ggplot(comp)+
+  theme(axis.text.x=element_text(angle=60,hjust = 1))+
+  geom_bar(aes(x=complaint,y=frequency),stat='identity')+
+  ggtitle("distribution of complaint")+
+  xlab("complaint")+
+  ylab("Number")
+```
+
+
+
+
+
+create map between calltype and simplified complaint
+```{r}
+cal_com<-list()
+keys=list()
+values=list()
+for (i in 1:nrow(raa.data)){
+  key<-com_call[i,2]  #Calltype is key
+  value<-as.character(m[i,4])  #Complaint is value
+  for (j in 5:ncol(com_call)){
+       value<-c(value,as.character(com_call[i,j]))
+    
+  }
+  if (key %in% keys){
+    a<-c(cal_com[[key]],value)
+    cal_com[[key]]<-a
+  }
+  else {
+    cal_com[[key]]<-value
+    keys<-c(keys,key)
+  }
+}
+
+table(cal_com[1]))
+head(com_call)
+cal_com
+```
+
+get unique value of complaint and calltype
+```{r}
+call_unique<-unique(com_call$Calltype)
+call_unique
+length(call_unique)
+com_unique<-unique(com_call$SimpleComplaint)
+com_unique
+length(com_unique)
+```
+
+ceate df with calltype as row and complaint as columns
+```{r}
+calcom_df<-matrix(NA, nrow=27, ncol=30)
+colnames(calcom_df)<-(com_unique)
+rownames(calcom_df)<-(call_unique)
+for (i in 1:27){
+  a<-cal_com[[i]]
+  for (j in 1:length(com_unique)){
+    num<-length(which(a==com_unique[j]))
+    #perc<-num/length(a)
+    calcom_df[i,j]<-num
+  }
+}
+head(calcom_df)
+
+heatmap(calcom_df)
+```
+
+```{r}
+cmost<-matrix(NA,nrow=27,ncol = 2)
+colnames(cmost)<-c('calltype','complaint')
+com_unique
+cmost[,1]<-call_unique
+for (i in 1: nrow(cmost)){
+  m=max(calcom_df[i,])
+  for (j in 1: ncol(calcom_df)){
+    if (calcom_df[i,j]==m){
+    cmost[i,2]<-toString(com_unique[j])
+    }
+  }
+} 
+cmost
+heatmap(cmost[,1])
+#p1<-ggparcoord(cmost, columns = c(1,2), scale = 'globalminmax')
+#my.pca <- prcomp(cmost,retx=TRUE,center=FALSE, scale=FALSE)
+```
+a matrix that only includes id, impression and intervention
+```{r}
+all_im_int<-raa.data[,c(1,5,7)] #a matrix that only includes id, impression and intervention
+imp_inter3<-matrix(NA,nrow=nrow(all_im_int),ncol=2)
+colnames(imp_inter3)<-c('id','impression')
+for (i in 1: nrow(imp_inter3)){
+  id<-as.character(all_im_int$ï..ID[i])
+  imp_inter3[i,1]<-id
+}
+
+for (i in 1:nrow(all_im_int)){
+  v<-as.character(all_im_int$Impression[i])
+  v<-(strsplit(v,'}')[[1]])[1]#take the last element as suggested by Sile
+  v<-gsub('\\{','',v)
+  imp_inter3[i,2]<-v
+}                                  #extract the first element of chief complaint column
+
+imp_inter3 <- transform(as.data.frame(imp_inter3),inter_n=as.numeric(factor(impression))) #transform chiefcom to unique numeric value 
+head(imp_inter3)
+max(imp_inter2[,3])
+head(all_im_int)
+```
+```{r}
+id3<-as.matrix(imp_inter3[,1])
+m3<-cbind(id3,matrix(NA, nrow=nrow(imp_inter3),ncol=12))
+#colnames(m3)<-c('id','v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19')
+for (i in 1:nrow(all_im_int)){
+  v<-as.character(all_im_int$Interventions[i])
+  v<-gsub('\\{','',v)
+  v<-strsplit(v,'}')[[1]]
+  v<-gsub("\\{", "",v)
+  v<-gsub('.*:','',v)
+  v<-trimws(v)
+  for (j in (1:length(v))){
+    j2<-j+1
+    m3[i,j2]<-v[j]
+  }
+} 
+m3<-cbind(imp_inter3,m3)
+m3
+m3<-m3[,-4]
+m3
+max(m2[,3])
+head(m)
+head(all_im_int)
+```
+
+```{r}
+dic_all<-list()
+keys4=list()
+values4=list()
+for (i in 1:nrow(all_im_int)){
+  key<-as.character(m[i,2])
+  value<-as.character(m[i,4])
+  for (j in 5:ncol(m)){
+    if (!is.na(m[i,j])){
+       value<-c(value,as.character(m[i,j]))
+    }
+  }
+  if (key %in% keys4){
+    a<-c(dic_all[[key]],value)
+    dic_all[[key]]<-a
+  }
+  else {
+    dic_all[[key]]<-value
+    keys4<-c(keys,key)
+  }
+}
+dic_all
+table(dic_all[1])
+length(dic_all)
+```
+
+```{r}
+intervention_all=c()
+for (i in 1:nrow(m)){
+  for (j in 4: ncol(m)){
+    if (!is.na(m[i,j])){
+      intervention_all<-c(intervention_all,as.character(m[i,j]))
+    }
+  }
+} 
+length(unique(intervention_all))
+intervention4<-unique(intervention_all)
+intervention4
+```
+```{r}
+all_inter<-matrix(NA, nrow=92, ncol=52)
+length(intervention4)
+intervention4<-intervention4[-c(1,3)]
+length(intervention4)
+colnames(all_inter)<-(intervention4)
+im_v<-unique(m[,2])
+rownames(all_inter)<-im_v
+
+#impression_v[2]
+#dic_breath[[impression_v[2]]]
+for (i in 1:92){
+  indi_inter4<-dic_all[[im_v[i]]]
+  for (j in 1:length(intervention4)){
+    num<-length(which(indi_inter4==intervention4[j]))
+    perc<-num/length(indi_inter4)
+    all_inter[i,j]<-perc
+  }
+}
+
+heatmap(all_inter)
+head(all_inter)
+```
+ find the intervention with the max possibility for each impression
+```{r}
+
+```
+ 
+ 
